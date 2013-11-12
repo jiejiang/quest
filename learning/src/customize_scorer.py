@@ -72,6 +72,25 @@ def find_eer(fprs, tprs):
             return (x1 * y2 - x2 * y1) / (x1 + y2 - x2 -y1)
     raise Exception, "not valid nubmers"
 
+def find_eer_thd(eer, fprs, thds):
+    closestthd = None
+    closestfpr = None
+    diff = 100000
+    for fpr, thd in zip(fprs, thds):
+        if abs(fpr - eer) < diff:
+            diff = abs(fpr-eer)
+            closestthd = thd
+            closestfpr = fpr
+    if closestthd is None or closestfpr is None:
+        raise Exception, "Cannot find index for eer"
+    return closestthd * eer / closestfpr
+
+def save_thds_tprs_fprs(filename, thds, tprs, fprs):
+    with open(filename, 'w') as fout:
+        print >> fout, "THD\tTPR\tFPR"
+        for thd, tpr, fpr in zip(thds, tprs, fprs):
+            print >> fout, "%f\t%f\t%f" % (thd, tpr, fpr)
+
 def classify_report_bin_regression(x, y):
     assert(len(x) == len(y))
     positive = 0
@@ -112,7 +131,10 @@ def classify_report_bin_regression(x, y):
         tprs.append(tpr)
         fprs.append(fpr)
 
+    save_thds_tprs_fprs("thresholds.csv", thds, tprs, fprs)
+
     eer = find_eer(fprs, tprs)
+    eer_thd = find_eer_thd(eer, fprs, thds)
 
     import matplotlib.pyplot as plt
     figure = plt.figure()
@@ -133,7 +155,8 @@ def classify_report_bin_regression(x, y):
     plt.plot([0, eer], [1-eer, 1-eer], 'k-')
     ax.text(eer+ 0.02, 1-eer, "EER = %.2f%%" % (eer * 100))
     plt.show()
-    return "EER = %f" % eer
+
+    return eer, eer_thd
 
 def classify_report_regression(x, y, refthd):
     assert(len(x) == len(y))
@@ -173,7 +196,10 @@ def classify_report_regression(x, y, refthd):
         tprs.append(tpr)
         fprs.append(fpr)
 
+    save_thds_tprs_fprs("thresholds.csv", thds, tprs, fprs)
+
     eer = find_eer(fprs, tprs)
+    eer_thd = find_eer_thd(eer, fprs, thds)
 
     import matplotlib.pyplot as plt
     figure = plt.figure()
@@ -194,7 +220,7 @@ def classify_report_regression(x, y, refthd):
     plt.plot([0, eer], [1-eer, 1-eer], 'k-')
     ax.text(eer+ 0.02, 1-eer, "EER = %.2f%%" % (eer * 100))
     plt.show()
-    return "EER = %f" % eer
+    return eer,eer_thd
     
 if __name__ == "__main__":
     a = [1,  2,  3,  4,  5]

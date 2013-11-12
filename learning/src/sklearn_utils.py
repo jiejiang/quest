@@ -37,6 +37,14 @@ def assert_string(generic_list):
             return False
     return True
 
+def open_eval_datasets(eval_path, delim, shape):
+    if not os.path.isfile(os.path.abspath(eval_path)):
+        raise IOError("eval dataset path is not valid: %s" % eval_path)
+    X_eval = read_features_file(eval_path, delim)
+    if X_eval.shape[1] <> shape:
+        raise IOError("the number of features in train and eva datasets is different.")
+    return X_eval
+
 def open_datasets(train_path, train_ref_path, test_path, 
                   test_ref_path, delim, labels_path=None):
     
@@ -104,6 +112,30 @@ def scale_datasets(X_train, X_test):
     log.debug("X_test after scaling = %s,%s" % X_test.shape)
 
     return X_train, X_test
+
+
+def scale_datasets(X_train, X_test, X_eval):
+    log.info("Scaling datasets...")
+
+    log.debug("X_train shape = %s,%s" % X_train.shape)
+    log.debug("X_test shape = %s,%s" % X_test.shape)
+    log.debug("X_eval shape = %s,%s" % X_eval.shape)
+
+    # concatenates the whole dataset so that the scaling is
+    # done over the same distribution
+    dataset = np.concatenate((X_train, X_test, X_eval))
+    scaled_dataset = preprocessing.scale(dataset)
+
+    # gets the scaled datasets splits back
+    X_train = scaled_dataset[:X_train.shape[0]]
+    X_test = scaled_dataset[X_train.shape[0]:X_train.shape[0]+X_test.shape[0]]
+    X_eval = scaled_dataset[X_train.shape[0]+X_test.shape[0]:]
+
+    log.debug("X_train after scaling = %s,%s" % X_train.shape)
+    log.debug("X_test after scaling = %s,%s" % X_test.shape)
+    log.debug("X_eval after scaling = %s,%s" % X_eval.shape)
+
+    return X_train, X_test, X_eval
 
 if __name__ == '__main__':
     pass

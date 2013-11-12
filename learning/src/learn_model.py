@@ -34,7 +34,7 @@ from sklearn.metrics.metrics import mean_squared_error, f1_score, \
     precision_score, recall_score
 from sklearn.svm.classes import SVR, SVC
 from sklearn_utils import scale_datasets, open_datasets, assert_number, \
-    assert_string
+    assert_string, open_eval_datasets
 import logging as log
 import numpy as np
 import os
@@ -289,7 +289,8 @@ def set_learning_method(config, X_train, y_train):
     return estimator, scorers
 
 
-def fit_predict(config, X_train, y_train, X_test=None, y_test=None, ref_thd=None):
+def fit_predict(config, X_train, y_train, X_test=None, y_test=None,
+                ref_thd=None, X_eval=None, eval_output=None, eval_threshold=None):
     '''
     Uses the configuration dictionary settings to train a model using the
     specified training algorithm. If set, also evaluates the trained model 
@@ -324,13 +325,18 @@ def fit_predict(config, X_train, y_train, X_test=None, y_test=None, ref_thd=None
         
         if X_test is not None:
             X_test = transformer.transform(X_test)
+
+        if not X_eval is None:
+            X_eval = transformer.transform(X_eval)
     
     
     # sets learning algorithm and runs it over the training data
     estimator, scorers = set_learning_method(config, X_train, y_train)
     log.info("Running learning algorithm %s" % str(estimator))
     estimator.fit(X_train, y_train)
-    
+
+    eer = None
+    eer_thd = None
     if (X_test is not None) and (y_test is not None):
         log.info("Predicting unseen data using the trained model...")
         y_hat = estimator.predict(X_test)
@@ -370,19 +376,39 @@ def fit_predict(config, X_train, y_train, X_test=None, y_test=None, ref_thd=None
             else:
                 res = classify_report_bin_regression(y_test, y_hat)
                 if "N/A" <> res:
-                    log.info("Classify report bin regression: = %s" % res)
+                    eer, eer_thd = res
+                    log.info("Classify report bin regression: EER = %f, thd = %f" % (eer, eer_thd))
                 else:
                     if ref_thd is None:
                         log.error("No ref thd defined")
                     else:
                         refthd = float(ref_thd)
                         res = classify_report_regression(y_test, y_hat, refthd)
-                        log.info("Classify report regression: = %s" % res)
+                        eer, eer_thd= res
+                        log.info("Classify report bin regression: EER = %f, thd = %f" % (eer, eer_thd))
         except Exception, e:
             print e
         with open("predicted.csv", 'w') as _fout:
             for _x,  _y in zip(y_test, y_hat):
                 print >> _fout,  "%f\t%f" % (_x,  _y)
+
+    if not X_eval is None:
+        log.info("Predicting evaluation data using the trained model...")
+        y_eval = estimator.predict(X_eval)
+        if not eval_output is None:
+            if eval_threshold is None:
+                eval_threshold = eer_thd
+            else:
+                eval_threshold = float(eval_threshold)
+            log.info("Using threshold: %f" % eval_threshold)
+            with open(eval_output, 'w') as feval:
+                with open(eval_output + '.raw', 'w') as fevalraw:
+                    for value in y_eval:
+                        print >> fevalraw, value
+                        if value >= eval_threshold:
+                            print >> feval, 1
+                        else:
+                            print >> feval, -1
 
 def run(config):
     '''
@@ -429,12 +455,21 @@ def run(config):
     open_datasets(x_train_path, y_train_path, x_test_path,
                   y_test_path, separator, labels_path)
 
+    X_eval = None
+    x_eval_path = config.get("eval_input", None)
+    if x_eval_path:
+        X_eval = open_eval_datasets(x_eval_path, separator, X_train.shape[1])
+
     if scale:
         # preprocess and execute mean removal
-        X_train, X_test = scale_datasets(X_train, X_test)
+        if X_eval is None:
+            X_train, X_test = scale_datasets(X_train, X_test)
+        else:
+            X_train, X_test, X_eval = scale_datasets(X_train, X_test, X_eval)
 
     # fits training data and predicts the test set using the trained model
-    y_hat = fit_predict(config, X_train, y_train, X_test, y_test, config.get("ref_thd", None))
+    y_hat = fit_predict(config, X_train, y_train, X_test, y_test, config.get("ref_thd", None),
+                        X_eval=X_eval, eval_output=config.get("eval_output", None), eval_threshold=config.get("eval_threshold", None))
     
     
 def main(argv=None): # IGNORE:C0111
@@ -476,6 +511,11 @@ USAGE
         parser.add_argument('-V', '--version', action='version', 
                             version=program_version_message)
 
+        #param for evaluation inputs
+        parser.add_argument('-i', '--input', dest="input", default=None)
+        parser.add_argument('-o', '--output', dest="output", default=None)
+        parser.add_argument('-t', '--threshold', dest="threshold", default=None)
+
         # Process arguments
         args = parser.parse_args()
         
@@ -490,9 +530,13 @@ USAGE
         config = None
         with open(cfg_path, "r") as cfg_file:
             config = yaml.load(cfg_file.read())
-         
+
+        #set up param for evaluation
+        config['eval_input'] = args.input
+        config['eval_output'] = args.output
+        config['eval_threshold'] = args.threshold
+
         run(config)
-        
         
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
