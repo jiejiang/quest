@@ -34,7 +34,7 @@ from sklearn.metrics.metrics import mean_squared_error, f1_score, \
     precision_score, recall_score
 from sklearn.svm.classes import SVR, SVC
 from sklearn_utils import scale_datasets, open_datasets, assert_number, \
-    assert_string, open_eval_datasets
+    assert_string, open_eval_datasets, scale_datasets_with_eval
 import logging as log
 import numpy as np
 import os
@@ -465,7 +465,7 @@ def run(config):
         if X_eval is None:
             X_train, X_test = scale_datasets(X_train, X_test)
         else:
-            X_train, X_test, X_eval = scale_datasets(X_train, X_test, X_eval)
+            X_train, X_test, X_eval = scale_datasets_with_eval(X_train, X_test, X_eval)
 
     # fits training data and predicts the test set using the trained model
     y_hat = fit_predict(config, X_train, y_train, X_test, y_test, config.get("ref_thd", None),

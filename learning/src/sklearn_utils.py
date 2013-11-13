@@ -114,7 +114,7 @@ def scale_datasets(X_train, X_test):
     return X_train, X_test
 
 
-def scale_datasets(X_train, X_test, X_eval):
+def scale_datasets_with_eval(X_train, X_test, X_eval):
     log.info("Scaling datasets...")
 
     log.debug("X_train shape = %s,%s" % X_train.shape)
