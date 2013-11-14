@@ -85,11 +85,11 @@ def find_eer_thd(eer, fprs, thds):
         raise Exception, "Cannot find index for eer"
     return closestthd * eer / closestfpr
 
-def save_thds_tprs_fprs(filename, thds, tprs, fprs):
+def save_thds_tprs_fprs_pers(filename, thds, tprs, fprs, pers):
     with open(filename, 'w') as fout:
-        print >> fout, "THD\tTPR\tFPR"
-        for thd, tpr, fpr in zip(thds, tprs, fprs):
-            print >> fout, "%f\t%f\t%f" % (thd, tpr, fpr)
+        print >> fout, "THD\tTPR\tFPR\tPER"
+        for thd, tpr, fpr, per in zip(thds, tprs, fprs, pers):
+            print >> fout, "%f\t%f\t%f\t%f" % (thd, tpr, fpr, per)
 
 def classify_report_bin_regression(x, y):
     assert(len(x) == len(y))
@@ -125,13 +125,16 @@ def classify_report_bin_regression(x, y):
     #accuracy = (tp + tn) * 1.0 / len(x)
     tprs = []
     fprs = []
+    pers = []
+    samplesize = len(x)
     for tp, fp, tn , fn in zip(tps, fps, tns, fns):
         tpr = tp * 1.0 / (tp + fn) #sensitivity
         fpr = fp * 1.0 / (tn + fp)
         tprs.append(tpr)
         fprs.append(fpr)
+        pers.append((tn + fn) * 1.0 / samplesize)
 
-    save_thds_tprs_fprs("thresholds.csv", thds, tprs, fprs)
+    save_thds_tprs_fprs_per("thresholds.csv", thds, tprs, fprs, pers)
 
     eer = find_eer(fprs, tprs)
     eer_thd = find_eer_thd(eer, fprs, thds)
@@ -190,13 +193,16 @@ def classify_report_regression(x, y, refthd):
     #accuracy = (tp + tn) * 1.0 / len(x)
     tprs = []
     fprs = []
+    pers = []
+    samplesize = len(x)
     for tp, fp, tn , fn in zip(tps, fps, tns, fns):
         tpr = tp * 1.0 / (tp + fn) #sensitivity
         fpr = fp * 1.0 / (tn + fp)
         tprs.append(tpr)
         fprs.append(fpr)
+        pers.append((tn + fn) * 1.0 / samplesize)
 
-    save_thds_tprs_fprs("thresholds.csv", thds, tprs, fprs)
+    save_thds_tprs_fprs_pers("thresholds.csv", thds, tprs, fprs, pers)
 
     eer = find_eer(fprs, tprs)
     eer_thd = find_eer_thd(eer, fprs, thds)
