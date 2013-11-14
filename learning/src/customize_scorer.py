@@ -134,7 +134,7 @@ def classify_report_bin_regression(x, y):
         fprs.append(fpr)
         pers.append((tn + fn) * 1.0 / samplesize)
 
-    save_thds_tprs_fprs_per("thresholds.csv", thds, tprs, fprs, pers)
+    save_thds_tprs_fprs_pers("thresholds.csv", thds, tprs, fprs, pers)
 
     eer = find_eer(fprs, tprs)
     eer_thd = find_eer_thd(eer, fprs, thds)
